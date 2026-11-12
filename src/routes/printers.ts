@@ -1,9 +1,9 @@
-import { Hono } from "hono";
-import { db } from "../db";
-import z from "zod";
-import { printersTable } from "../db/schema";
-import { eq } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
+import { eq } from "drizzle-orm";
+import { Hono } from "hono";
+import z from "zod";
+import { db } from "../db";
+import { printersTable } from "../db/schema";
 
 const app = new Hono();
 

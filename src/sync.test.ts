@@ -1,8 +1,7 @@
 import { beforeEach, expect, test } from "vitest";
-import { FakeVendorClient } from "./vendor";
-import { syncPrinters } from "./sync";
 import { resetDatabase, testDb } from "../test/db";
 import { printersTable } from "./db/schema";
+import { syncPrinters } from "./sync";
 
 beforeEach(resetDatabase);
 

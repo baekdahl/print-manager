@@ -1,8 +1,7 @@
 import { beforeEach, expect, test } from "vitest";
 import { resetDatabase } from "../../test/db";
-import { syncPrinters } from "../sync";
 import { app } from "../app";
-import { STATUS_CODES } from "http";
+import { syncPrinters } from "../sync";
 
 beforeEach(resetDatabase);
 
