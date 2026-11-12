@@ -1,44 +1,117 @@
-import { sql } from "drizzle-orm";
+import { and, eq, notInArray, sql } from "drizzle-orm";
+import type { PgColumn } from "drizzle-orm/pg-core";
 import { db } from "./db";
-import { printersTable } from "./db/schema";
-import type { VendorClient } from "./vendor";
+import { labelsTable, printersTable } from "./db/schema";
+import type { VendorClient, VendorLabel, VendorPrinter } from "./vendor";
 
-type NewPrinter = typeof printersTable.$inferInsert;
+// Any fixed number works, as long as nothing else in the database uses it as a lock key.
+export const SYNC_LOCK_KEY = 7_311_001;
 
-export async function syncPrinters(client: VendorClient) {
-	const vendorPrinters = await client.getPrinters();
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-	const currentPrinters = await db.select().from(printersTable);
+/**
+ * Makes our printers and labels match the vendor's, in one transaction.
+ *
+ * Throws (and changes nothing) if the vendor can't be read.
+ * Returns "skipped" if another run is already in progress.
+ */
+export async function sync(
+	vendor: VendorClient,
+): Promise<"synced" | "skipped"> {
+	// Read the vendor before opening a transaction: if either call fails we never touch
+	// the database, and a slow vendor doesn't keep a transaction and lock open.
+	const [printers, labels] = await Promise.all([
+		vendor.getPrinters(),
+		vendor.getLabels(),
+	]);
 
-	const joinedPrinters: NewPrinter[] = vendorPrinters.map((vendorPrinter) => {
-		const printer = currentPrinters.find(
-			(printer) => printer.name === vendorPrinter.name,
+	return db.transaction(async (tx) => {
+		// "try": don't wait for a running sync, just skip. "xact": released on commit/rollback.
+		const { rows } = await tx.execute<{ locked: boolean }>(
+			sql`select pg_try_advisory_xact_lock(${SYNC_LOCK_KEY}) as locked`,
 		);
+		if (!rows[0]?.locked) return "skipped";
 
-		return {
-			...printer,
-			name: vendorPrinter.name,
-			model: vendorPrinter.model,
-		};
+		await syncPrinters(
+			tx,
+			uniqueBy(printers, (p) => p.name),
+		);
+		await syncLabels(
+			tx,
+			uniqueBy(labels, (l) => l.id),
+		);
+		return "synced";
 	});
-
-	await db
-		.insert(printersTable)
-		.values(joinedPrinters)
-		.onConflictDoUpdate({
-			target: printersTable.name,
-			set: {
-				model: sql.raw(`excluded."${printersTable.model.name}"`),
-			},
-		});
 }
 
-// Write one test per behaviour. You can derive them from ADR 0001:
-// - A new vendor printer is inserted.
-// - A changed vendor field is updated.
-// - Metadata survives a sync that changes vendor fields (#3).
-// - A printer missing from the vendor gets soft-deleted, and its metadata is kept (#6).
-// - A soft-deleted printer that reappears is restored.
-// - An empty vendor list soft-deletes everything (ADR 0002).
-// - A vendor error leaves the database unchanged, once getPrinters is async and can fail.
-// - Running sync twice with the same data gives the same result (idempotency).
+async function syncPrinters(tx: Transaction, printers: VendorPrinter[]) {
+	if (printers.length > 0) {
+		await tx
+			.insert(printersTable)
+			.values(printers.map(({ name, model }) => ({ name, model })))
+			.onConflictDoUpdate({
+				target: printersTable.name,
+				// Only vendor fields are overwritten, so our metadata survives.
+				set: { model: excluded(printersTable.model), deleted: false },
+			});
+	}
+
+	// Whatever the vendor no longer returns is soft-deleted. With an empty list,
+	// notInArray matches every row.
+	await tx
+		.update(printersTable)
+		.set({ deleted: true })
+		.where(
+			and(
+				eq(printersTable.deleted, false),
+				notInArray(
+					printersTable.name,
+					printers.map((p) => p.name),
+				),
+			),
+		);
+}
+
+async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
+	if (labels.length > 0) {
+		await tx
+			.insert(labelsTable)
+			.values(labels.map(({ id, name, version }) => ({ id, name, version })))
+			.onConflictDoUpdate({
+				target: labelsTable.id,
+				set: {
+					name: excluded(labelsTable.name),
+					version: excluded(labelsTable.version),
+					deleted: false,
+					// A label that moved to another name can't stay primary: it would collide
+					// with that name's primary on the unique index and fail every sync.
+					isPrimary: sql`${labelsTable.isPrimary} and ${labelsTable.name} = ${excluded(labelsTable.name)}`,
+				},
+			});
+	}
+
+	// A removed label stops being primary, so it comes back as not primary (ADR 0001 #8).
+	await tx
+		.update(labelsTable)
+		.set({ deleted: true, isPrimary: false })
+		.where(
+			and(
+				eq(labelsTable.deleted, false),
+				notInArray(
+					labelsTable.id,
+					labels.map((l) => l.id),
+				),
+			),
+		);
+}
+
+// In ON CONFLICT DO UPDATE, `excluded` is the row we tried to insert.
+function excluded(column: PgColumn) {
+	return sql`excluded.${sql.identifier(column.name)}`;
+}
+
+// Postgres rejects an upsert that touches the same row twice, so drop duplicate keys
+// (keeping the last one) rather than let one bad vendor response fail the whole sync.
+function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
+	return [...new Map(items.map((item) => [key(item), item])).values()];
+}

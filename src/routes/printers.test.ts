@@ -2,14 +2,12 @@ import { beforeEach, expect, test } from "vitest";
 import { resetDatabase } from "../../test/db";
 import { stubVendor } from "../../test/vendor";
 import { app } from "../app";
-import { syncPrinters } from "../sync";
+import { sync } from "../sync";
 
 beforeEach(resetDatabase);
 
 test("Get new printer", async () => {
-	await syncPrinters(
-		stubVendor({ printers: [{ name: "printer", model: "brother" }] }),
-	);
+	await sync(stubVendor({ printers: [{ name: "printer", model: "brother" }] }));
 
 	const res = await app.request("/printers/printer");
 	expect(res.status).toBe(200);
@@ -24,9 +22,7 @@ test("Get new printer", async () => {
 });
 
 test("Update printer", async () => {
-	await syncPrinters(
-		stubVendor({ printers: [{ name: "printer", model: "brother" }] }),
-	);
+	await sync(stubVendor({ printers: [{ name: "printer", model: "brother" }] }));
 
 	const res = await app.request("/printers/printer");
 	expect(res.status).toBe(200);
