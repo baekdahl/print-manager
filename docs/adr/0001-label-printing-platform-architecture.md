@@ -41,7 +41,7 @@ We can't reach the stakeholders, so each open question gets an explicit assumpti
 | 2  | How do we identify a label? | `id` is unique and stable. A new version of a label gets a new `id` but keeps the same `name`. | Use `id` as the label's key, both in our database and in URLs (`/labels/{id}`). |
 | 3  | Who owns which data? | The vendor owns whether a printer or label exists, plus its vendor fields. We own the metadata. | Vendor fields are read-only in our API and only updated by sync. Users can only edit our metadata fields. API responses combine both. |
 | 4  | How do we learn about changes at the vendor? | The vendor has no webhooks or change feed. | Poll the vendor periodically (e.g. every 60 s) and reconcile into our own store. See below for why. |
-| 5  | How out of date may list data be? | Users browse lists mostly to choose what to print, and the vendor validates every print anyway. Data up to a minute old is fine. | Sync interval of 60 s. List responses include `lastSyncedAt` in their envelope (#21) so clients can see how fresh the data is. |
+| 5  | How out of date may list data be? | Users browse lists mostly to choose what to print, and the vendor validates every print anyway. Data up to a minute old is fine. | Sync interval of 60 s. |
 | 6  | What happens when a printer or label disappears at the vendor? | It might come back, e.g. if the other team removed it by mistake. | Soft delete: hide it from lists but keep its metadata, and restore it if it reappears. |
 | 7  | Someone updates metadata on a printer we haven't synced yet. | Users don't know the vendor and only find printers and labels through our API, so they can't refer to one we haven't synced. | Return 404. No on-demand refresh. |
 | 8  | What does `isPrimary` mean? | It marks which version of a label (same `name`) users should pick. | At most one primary per label `name` among labels that aren't removed. Setting a new one clears the old one. When the primary is removed at the vendor, the `name` has no primary until a user picks one. A removed label that reappears comes back as not primary. A new version is never primary by default. |
@@ -57,7 +57,7 @@ We can't reach the stakeholders, so each open question gets an explicit assumpti
 | 18 | Scale? | Hundreds of printers, thousands of labels, tens of print jobs per minute. | One small service with managed or serverless components. No sharding. |
 | 19 | What are the vendor's rate limits? | Unknown, but modest. | Poll conservatively and send all vendor calls through one client. |
 | 20 | Cloud and stack? | See [ADR 0002](0002-aws-serverless-with-local-node.md). | AWS Lambda, RDS Postgres and SQS, written in TypeScript. |
-| 21 | How do responses separate vendor data from our metadata? | Clients need to see what they can edit. | Vendor fields at the top level, our fields under `metadata`. Lists use the envelope `{ items, lastSyncedAt }`. |
+| 21 | How do responses separate vendor data from our metadata? | Clients need to see what they can edit. | Vendor fields at the top level, our fields under `metadata`. Lists are plain JSON arrays. |
 | 22 | Do lists paginate? | Thousands of items fit comfortably in one response. | No pagination for now. |
 | 23 | Are removed printers and labels visible? | Users have no use for something they can't print to. | No. They're left out of lists, `GET` and `PATCH` return `404`, and print jobs that reference them get `422`. |
 | 24 | What does `PATCH` mean? | Clients edit one or two fields at a time. | The body is a partial `metadata` object. A missing field means no change, `null` clears the field, and unknown fields (including vendor fields) get `400`. |
@@ -85,4 +85,6 @@ Cost: data can be up to one sync interval old, and there is a sync worker to run
 - If vendor names are not actually stable (assumption 1), metadata ends up attached to the wrong printer.
 - Response timeouts (#13): the vendor gives no print job id, so after a timeout we can't tell whether the job printed. We mark it `failed` even though it might have printed.
 - Last write wins (#10): when two users edit the same field at the same time, one edit is silently lost.
+- Concurrent `isPrimary` (#8): two requests at the same time that set `isPrimary: true` on versions of the same label can make one of them fail with `500`. The partial unique index keeps the data correct, and the client can retry. Locking the label's versions first would avoid the error, but it's rare enough not to be worth it.
+- Freshness isn't visible (#5): responses don't say when data was last synced, so a client can't tell when sync has been failing.
 - No idempotency key (#14): a client that loses our `202` response and retries creates a duplicate print.

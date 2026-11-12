@@ -73,7 +73,7 @@ We rejected running Lambdas outside the VPC: it would make RDS reachable from th
 
 - **Migrations:** `drizzle-kit migrate` runs locally and in CI. In AWS, a migration Lambda is invoked after `terraform apply`.
 - **Database password:** RDS manages it in Secrets Manager.
-- **Logging and alarms:** structured JSON logs go to CloudWatch. There are alarms on dead-letter queue depth, sync failures, and the rate of `failed` jobs.
+- **Logging and alarms:** logs go to CloudWatch as plain text. Structured JSON logs are future work. There are alarms on dead-letter queue depth, sync failures, and the rate of `failed` jobs.
 - **CI:** GitHub Actions runs typecheck, lint (Biome) and tests.
 
 **Tests:**

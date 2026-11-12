@@ -1,6 +1,6 @@
 # API
 
-Decisions behind this API are in [ADR 0001](adr/0001-label-printing-platform-architecture.md). The OpenAPI spec is generated from the Zod schemas in code.
+Decisions behind this API are in [ADR 0001](adr/0001-label-printing-platform-architecture.md). The OpenAPI spec is generated from the Zod schemas in code and served at `/openapi.json`, with Swagger UI at `/docs`.
 
 ## Routes
 
@@ -51,11 +51,7 @@ Metadata fields are `null` until a user sets them. `isPrimary` defaults to `fals
 
 ### Lists
 
-```json
-{ "items": [], "lastSyncedAt": "2026-11-10T12:00:00Z" }
-```
-
-No pagination.
+Lists are plain JSON arrays of the resource. No pagination.
 
 ### Print job
 
@@ -99,8 +95,9 @@ Response:
 - A missing field means no change.
 - `null` clears the field.
 - Unknown fields, including vendor fields like `model`, get `400`.
+- `isPrimary` takes only `true` or `false`. `null` gets `400`.
 - Setting `isPrimary: true` on a label clears it on the other labels with the same `name`.
-- Concurrent edits: the last write wins.
+- Concurrent edits: the last write wins. One exception: two requests at the same time that set `isPrimary: true` on versions of the same label can make one of them fail with `500`. The database still ends up with one primary.
 
 ## Errors
 
