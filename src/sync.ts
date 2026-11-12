@@ -12,13 +12,13 @@ export async function syncPrinters(client: VendorClient) {
 
 	const joinedPrinters: NewPrinter[] = vendorPrinters.map((vendorPrinter) => {
 		const printer = currentPrinters.find(
-			(printer) => printer.vendorName === vendorPrinter.name,
+			(printer) => printer.name === vendorPrinter.name,
 		);
 
 		return {
 			...printer,
-			vendorName: vendorPrinter.name,
-			vendorModel: vendorPrinter.model,
+			name: vendorPrinter.name,
+			model: vendorPrinter.model,
 		};
 	});
 
@@ -26,9 +26,9 @@ export async function syncPrinters(client: VendorClient) {
 		.insert(printersTable)
 		.values(joinedPrinters)
 		.onConflictDoUpdate({
-			target: printersTable.vendorName,
+			target: printersTable.name,
 			set: {
-				vendorModel: sql.raw(`excluded."${printersTable.vendorModel.name}"`),
+				model: sql.raw(`excluded."${printersTable.model.name}"`),
 			},
 		});
 }

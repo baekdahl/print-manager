@@ -19,8 +19,8 @@ test("vendor printer is inserted", async () => {
 
 	expect(rows).toEqual([
 		{
-			vendorName: "printer",
-			vendorModel: "brother",
+			name: "printer",
+			model: "brother",
 			location: null,
 			nickname: null,
 			serialNumber: null,

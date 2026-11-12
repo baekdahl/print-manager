@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Client } from "pg";
 import { testDatabaseName, testDatabaseUrl } from "./database-url";
 
@@ -17,8 +18,11 @@ export default async function setup() {
 		await admin.end();
 	}
 
-	execFileSync("pnpm", ["drizzle-kit", "push", "--force"], {
-		env: { ...process.env, DATABASE_URL: testDatabaseUrl },
-		stdio: "pipe",
-	});
+	// Apply the same migrations as dev and production, so tests run on the real schema.
+	const db = drizzle(testDatabaseUrl);
+	try {
+		await migrate(db, { migrationsFolder: "./drizzle" });
+	} finally {
+		await db.$client.end();
+	}
 }

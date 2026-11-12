@@ -22,7 +22,7 @@ app.get("/:name", async (c) => {
 	const [printer] = await db
 		.select()
 		.from(printersTable)
-		.where(eq(printersTable.vendorName, c.req.param("name")));
+		.where(eq(printersTable.name, c.req.param("name")));
 
 	return c.json(printer);
 });
@@ -32,7 +32,7 @@ app.patch("/:name", zValidator("json", PrinterPatch), async (c) => {
 	const [printer] = await db
 		.update(printersTable)
 		.set(patch)
-		.where(eq(printersTable.vendorName, c.req.param("name")))
+		.where(eq(printersTable.name, c.req.param("name")))
 		.returning();
 	return c.json(printer);
 });

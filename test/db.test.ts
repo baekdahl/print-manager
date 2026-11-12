@@ -5,9 +5,7 @@ import { resetDatabase, testDb } from "./db";
 beforeEach(resetDatabase);
 
 test("test database has the schema and is emptied between tests", async () => {
-	await testDb
-		.insert(printersTable)
-		.values({ vendorName: "smoke", vendorModel: "test" });
+	await testDb.insert(printersTable).values({ name: "smoke", model: "test" });
 
 	await resetDatabase();
 

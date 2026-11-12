@@ -18,8 +18,8 @@ test("Get new printer", async () => {
 	const res = await app.request("/printers/printer");
 	expect(res.status).toBe(200);
 	expect(await res.json()).toEqual({
-		vendorName: "printer",
-		vendorModel: "brother",
+		name: "printer",
+		model: "brother",
 		location: null,
 		nickname: null,
 		serialNumber: null,
@@ -40,8 +40,8 @@ test("Update printer", async () => {
 	const res = await app.request("/printers/printer");
 	expect(res.status).toBe(200);
 	expect(await res.json()).toEqual({
-		vendorName: "printer",
-		vendorModel: "brother",
+		name: "printer",
+		model: "brother",
 		location: null,
 		nickname: null,
 		serialNumber: null,
@@ -57,8 +57,8 @@ test("Update printer", async () => {
 	});
 	expect(patchRes.status).toBe(200);
 	expect(await patchRes.json()).toEqual({
-		vendorName: "printer",
-		vendorModel: "brother",
+		name: "printer",
+		model: "brother",
 		location: null,
 		nickname: "bob",
 		serialNumber: null,
