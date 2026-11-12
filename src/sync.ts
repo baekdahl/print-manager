@@ -1,12 +1,8 @@
-import { drizzle } from "drizzle-orm/node-postgres";
-import { FakeVendorClient, VendorClient, VendorPrinter } from "./vendor";
-import { env } from "./env";
+import { sql } from "drizzle-orm";
+import { db } from "./db";
 import { printersTable } from "./db/schema";
-import { InferSelectModel, sql } from "drizzle-orm";
+import { FakeVendorClient, type VendorClient } from "./vendor";
 
-const db = drizzle(env.DATABASE_URL);
-
-type Printer = typeof printersTable.$inferSelect;
 type NewPrinter = typeof printersTable.$inferInsert;
 
 export async function syncPrinters(client: VendorClient) {

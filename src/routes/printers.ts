@@ -1,12 +1,9 @@
-import { drizzle } from "drizzle-orm/node-postgres";
 import { Hono } from "hono";
-import { env } from "../env";
+import { db } from "../db";
 import z from "zod";
 import { printersTable } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { zValidator } from "@hono/zod-validator";
-
-const db = drizzle(env.DATABASE_URL);
 
 const app = new Hono();
 
