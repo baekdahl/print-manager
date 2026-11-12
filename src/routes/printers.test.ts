@@ -178,7 +178,12 @@ describe("the app", () => {
 		const doc = await (await get("/openapi.json")).json();
 
 		expect(Object.keys(doc.paths)).toEqual(
-			expect.arrayContaining(["/printers", "/printers/{name}"]),
+			expect.arrayContaining([
+				"/printers",
+				"/printers/{name}",
+				"/labels",
+				"/labels/{id}",
+			]),
 		);
 		expect(doc.components.schemas).toHaveProperty("Printer");
 	});

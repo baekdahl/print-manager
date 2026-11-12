@@ -2,6 +2,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { problem, toIssues } from "./http/problem";
+import labels from "./routes/labels";
 import printers from "./routes/printers";
 
 export const app = new OpenAPIHono({
@@ -17,6 +18,7 @@ export const app = new OpenAPIHono({
 });
 
 app.route("/printers", printers);
+app.route("/labels", labels);
 
 app.doc31("/openapi.json", {
 	openapi: "3.1.0",
