@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { printersTable } from "./db/schema";
-import { FakeVendorClient, type VendorClient } from "./vendor";
+import type { VendorClient } from "./vendor";
 
 type NewPrinter = typeof printersTable.$inferInsert;
 
 export async function syncPrinters(client: VendorClient) {
-	const vendorPrinters = client.getPrinters();
+	const vendorPrinters = await client.getPrinters();
 
 	const currentPrinters = await db.select().from(printersTable);
 
@@ -31,10 +31,6 @@ export async function syncPrinters(client: VendorClient) {
 				model: sql.raw(`excluded."${printersTable.model.name}"`),
 			},
 		});
-}
-
-if (import.meta.main) {
-	await syncPrinters(new FakeVendorClient());
 }
 
 // Write one test per behaviour. You can derive them from ADR 0001:
