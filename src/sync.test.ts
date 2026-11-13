@@ -116,15 +116,6 @@ describe("printers", () => {
 
 		expect(await printers()).toEqual(once);
 	});
-
-	test("a duplicate name in the vendor response doesn't break the sync", async () => {
-		await syncPrinters([
-			{ name: "P1", model: "ZD420" },
-			{ name: "P1", model: "ZD421" },
-		]);
-
-		expect(await printers()).toEqual([printerRow("P1", "ZD421")]);
-	});
 });
 
 const labelRow = (
@@ -197,26 +188,6 @@ describe("labels", () => {
 		await syncLabels([{ id: "L1", name: "shipping", version: "1" }]);
 
 		expect(await labels()).toEqual([labelRow("L1", "shipping", "1")]);
-	});
-
-	test("a primary label renamed at the vendor stops being primary", async () => {
-		// Otherwise it could collide with the primary of its new name and fail every sync.
-		await syncLabels([
-			{ id: "L1", name: "shipping", version: "1" },
-			{ id: "L2", name: "pallet", version: "1" },
-		]);
-		await makePrimary("L1");
-		await makePrimary("L2");
-
-		await syncLabels([
-			{ id: "L1", name: "pallet", version: "2" },
-			{ id: "L2", name: "pallet", version: "1" },
-		]);
-
-		expect(await labels()).toEqual([
-			labelRow("L1", "pallet", "2"),
-			labelRow("L2", "pallet", "1", { isPrimary: true }),
-		]);
 	});
 });
 

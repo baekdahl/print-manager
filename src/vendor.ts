@@ -1,6 +1,5 @@
-import "dotenv/config";
-import { Agent, fetch as undiciFetch } from "undici";
 import { z } from "zod";
+import { env } from "./env";
 
 // The vendor's contract, as far as we rely on it. Anything else in the response is ignored.
 const VendorPrinterSchema = z.object({ name: z.string(), model: z.string() });
@@ -47,15 +46,6 @@ export type Fetch = (
 	init?: RequestInit,
 ) => Response | Promise<Response>;
 
-// Gives up on connecting after 3 s, well before the 10 s response timeout, so a vendor we
-// can't reach shows up as a connection error (retryable) rather than a timeout (final).
-const dispatcher = new Agent({ connect: { timeout: 3_000 } });
-const fetchWithConnectTimeout: Fetch = (url, init) =>
-	undiciFetch(url, {
-		...(init as Parameters<typeof undiciFetch>[1]),
-		dispatcher,
-	}) as unknown as Promise<Response>;
-
 type HttpVendorClientOptions = {
 	baseUrl: string;
 	fetch?: Fetch;
@@ -69,7 +59,7 @@ export class HttpVendorClient implements VendorClient {
 
 	constructor({
 		baseUrl,
-		fetch = fetchWithConnectTimeout,
+		fetch = globalThis.fetch,
 		timeoutMs = 10_000,
 	}: HttpVendorClientOptions) {
 		this.baseUrl = baseUrl.replace(/\/$/, "");
@@ -151,8 +141,7 @@ export class HttpVendorClient implements VendorClient {
 }
 
 export function vendorFromEnv(): VendorClient {
-	const { VENDOR_URL } = z.object({ VENDOR_URL: z.url() }).parse(process.env);
-	return new HttpVendorClient({ baseUrl: VENDOR_URL });
+	return new HttpVendorClient({ baseUrl: env.VENDOR_URL });
 }
 
 // Errors that happen before the request is sent, so the vendor can't have acted on it.
@@ -162,7 +151,6 @@ const CONNECT_ERROR_CODES = new Set([
 	"EAI_AGAIN",
 	"EHOSTUNREACH",
 	"ENETUNREACH",
-	"UND_ERR_CONNECT_TIMEOUT",
 ]);
 
 // fetch wraps network errors: TypeError("fetch failed", { cause: { code: "ECONNREFUSED" } }).

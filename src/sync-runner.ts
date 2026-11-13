@@ -1,16 +1,5 @@
-import "dotenv/config";
-import { z } from "zod";
 import { sync } from "./sync";
 import type { VendorClient } from "./vendor";
-
-export function syncIntervalFromEnv() {
-	return z.coerce
-		.number()
-		.int()
-		.positive()
-		.default(60_000)
-		.parse(process.env.SYNC_INTERVAL_MS);
-}
 
 // For long-running processes: a failed run is reported, and the next run tries again.
 export async function syncAndReport(vendor: VendorClient) {

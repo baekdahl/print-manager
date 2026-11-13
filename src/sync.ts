@@ -20,14 +20,8 @@ export async function sync(vendor: VendorClient): Promise<void> {
 	]);
 
 	await db.transaction(async (tx) => {
-		await syncPrinters(
-			tx,
-			uniqueBy(printers, (p) => p.name),
-		);
-		await syncLabels(
-			tx,
-			uniqueBy(labels, (l) => l.id),
-		);
+		await syncPrinters(tx, printers);
+		await syncLabels(tx, labels);
 	});
 }
 
@@ -70,9 +64,6 @@ async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
 					name: excluded(labelsTable.name),
 					version: excluded(labelsTable.version),
 					deleted: false,
-					// A label that moved to another name can't stay primary: it would collide
-					// with that name's primary on the unique index and fail every sync.
-					isPrimary: sql`${labelsTable.isPrimary} and ${labelsTable.name} = ${excluded(labelsTable.name)}`,
 				},
 			});
 	}
@@ -95,10 +86,4 @@ async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
 // In ON CONFLICT DO UPDATE, `excluded` is the row we tried to insert.
 function excluded(column: PgColumn) {
 	return sql`excluded.${sql.identifier(column.name)}`;
-}
-
-// Postgres rejects an upsert that touches the same row twice, so drop duplicate keys
-// (keeping the last one) rather than let one bad vendor response fail the whole sync.
-function uniqueBy<T>(items: T[], key: (item: T) => string): T[] {
-	return [...new Map(items.map((item) => [key(item), item])).values()];
 }

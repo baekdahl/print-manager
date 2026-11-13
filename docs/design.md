@@ -76,7 +76,7 @@ We can't reach the stakeholders, so each open question gets an explicit assumpti
 
 The cost is up to 60 s of staleness. That's acceptable, because users only find printers and labels through our API, and the vendor still has the final say on every print.
 
-**Retry only when the vendor certainly did nothing.** A `500` means nothing printed. A failed connection (refused, DNS error, no connection within 3 s) means the request never arrived. Both are retried with exponential backoff: 10, 20, 40 and 80 s. A `400` won't change on retry. After a response timeout (10 s), the vendor may already have printed, and with no job id we can't check. A duplicate label is worse than a missing one, so a `400`, a response timeout or running out of attempts mark the job `failed`.
+**Retry only when the vendor certainly did nothing.** A `500` means nothing printed. A failed connection (refused, DNS error) means the request never arrived. Both are retried with exponential backoff: 10, 20, 40 and 80 s. A `400` won't change on retry. After a timeout (10 s), the vendor may already have printed, and with no job id we can't check. A duplicate label is worse than a missing one, so a `400`, a timeout or running out of attempts mark the job `failed`.
 
 | Tech choice | Why | Rejected |
 |---|---|---|
@@ -229,7 +229,7 @@ sequenceDiagram
   end
 ```
 
-- The vendor is read before the transaction opens, so a slow vendor never holds a lock, and a failed read never writes.
+- The vendor is read before the transaction opens, so a slow vendor never keeps a transaction and a pooled connection open, and a failed read never writes.
 - The upsert only touches vendor fields, so metadata survives, and survives removal and restore too.
 - An empty vendor list is accepted, because soft delete can be undone.
 
@@ -285,7 +285,7 @@ sequenceDiagram
 ```
 
 - The job is inserted before it's queued, so the worker always finds it. If the send fails, the job is marked `failed` and the client gets `503`.
-- SQS delivers at least once. The row lock and the `queued` check make a duplicate delivery a no-op.
+- SQS delivers at least once. The row lock and the `queued` check make a duplicate delivery a no-op. The lock is held during the vendor call, on purpose: it only blocks other workers on the same job, and they skip it.
 - The worker owns the retry limit and marks jobs `failed` itself. The dead-letter queue only receives messages whose handler crashed.
 
 ## 6. Implemented vs. designed, not built
@@ -295,10 +295,10 @@ sequenceDiagram
 | API: printers, labels, print jobs, OpenAPI | Terraform for all AWS resources |
 | Sync with soft delete, restore and the `isPrimary` rules | API Gateway, EventBridge Scheduler, SQS → Lambda mapping |
 | Print worker with error classification and SQS backoff | VPC, NAT gateway, RDS Proxy, Secrets Manager |
-| Lambda handlers, bundled by esbuild (`pnpm build`) | CloudWatch alarms: DLQ depth, sync failures, rate of `failed` jobs |
-| Local runner: Postgres and ElasticMQ in Docker | A migration Lambda run after `terraform apply` |
-| Fake vendor with fault injection | A deployed demo |
-| Unit and integration tests, including submit → queue → worker → status | |
+| Local runner: Postgres and ElasticMQ in Docker | CloudWatch alarms: DLQ depth, sync failures, rate of `failed` jobs |
+| Fake vendor with fault injection | A migration Lambda run after `terraform apply` |
+| Unit and integration tests, including submit → queue → worker → status | Lambda handlers (`src/lambda/`, bundled by `pnpm build`): written, not yet deployed or tested |
+| | A deployed demo |
 
 Out of scope for this hand-in: CI and authentication.
 
@@ -306,7 +306,7 @@ Out of scope for this hand-in: CI and authentication.
 
 - **Staleness:** a printer removed at the vendor stays listed until the next sync, and responses don't say when data was last synced.
 - **Name stability:** if vendor printer names aren't actually stable, metadata ends up on the wrong printer.
-- **Response timeouts:** the job is marked `failed`, even though it may have printed.
+- **Timeouts:** the job is marked `failed`, even though it may have printed. That includes a vendor we can't connect to within 10 s, which is never retried.
 - **Worker crash after a `201`:** the transaction rolls back, the job stays `queued` and SQS redelivers it, causing a duplicate print. Closing this gap would need an idempotency key from the vendor.
 - **Crash between insert and queue send:** the job stays `queued` with no message. That's the cost of not having an outbox.
 - **No idempotency key:** a client that loses our `202` and retries creates a duplicate print.
