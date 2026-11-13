@@ -4,7 +4,8 @@ import { vendorFromEnv } from "./vendor";
 
 // `pnpm sync`: one run, then exit. A failed run exits non-zero.
 try {
-	console.log(`sync ${await sync(vendorFromEnv())}`);
+	await sync(vendorFromEnv());
+	console.log("synced");
 } catch (error) {
 	console.error(
 		`sync failed: ${error instanceof Error ? error.message : error}`,

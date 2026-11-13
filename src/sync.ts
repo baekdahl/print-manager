@@ -4,34 +4,22 @@ import { db } from "./db";
 import { labelsTable, printersTable } from "./db/schema";
 import type { VendorClient, VendorLabel, VendorPrinter } from "./vendor";
 
-// Any fixed number works, as long as nothing else in the database uses it as a lock key.
-export const SYNC_LOCK_KEY = 7_311_001;
-
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * Makes our printers and labels match the vendor's, in one transaction.
  *
  * Throws (and changes nothing) if the vendor can't be read.
- * Returns "skipped" if another run is already in progress.
  */
-export async function sync(
-	vendor: VendorClient,
-): Promise<"synced" | "skipped"> {
+export async function sync(vendor: VendorClient): Promise<void> {
 	// Read the vendor before opening a transaction: if either call fails we never touch
-	// the database, and a slow vendor doesn't keep a transaction and lock open.
+	// the database, and a slow vendor doesn't keep a transaction open.
 	const [printers, labels] = await Promise.all([
 		vendor.getPrinters(),
 		vendor.getLabels(),
 	]);
 
-	return db.transaction(async (tx) => {
-		// "try": don't wait for a running sync, just skip. "xact": released on commit/rollback.
-		const { rows } = await tx.execute<{ locked: boolean }>(
-			sql`select pg_try_advisory_xact_lock(${SYNC_LOCK_KEY}) as locked`,
-		);
-		if (!rows[0]?.locked) return "skipped";
-
+	await db.transaction(async (tx) => {
 		await syncPrinters(
 			tx,
 			uniqueBy(printers, (p) => p.name),
@@ -40,7 +28,6 @@ export async function sync(
 			tx,
 			uniqueBy(labels, (l) => l.id),
 		);
-		return "synced";
 	});
 }
 

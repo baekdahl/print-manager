@@ -215,10 +215,7 @@ sequenceDiagram
   alt vendor fails, times out or returns a bad body
     L-->>S: throw: nothing changed, the next run retries
   end
-  L->>DB: BEGIN, pg_try_advisory_xact_lock
-  alt another run holds the lock
-    L->>DB: ROLLBACK: skip this run
-  end
+  L->>DB: BEGIN
   L->>DB: upsert vendor fields, deleted = false (restores reappearing items)
   L->>DB: soft delete everything the vendor didn't return. Removed labels lose isPrimary
   L->>DB: COMMIT
@@ -226,7 +223,7 @@ sequenceDiagram
 
 - The vendor is read before the transaction opens, so a slow vendor never holds a lock, and a failed read never writes.
 - The upsert only touches vendor fields, so metadata survives, and survives removal and restore too.
-- The advisory lock stops runs from overlapping. An empty vendor list is accepted, because soft delete can be undone.
+- An empty vendor list is accepted, because soft delete can be undone.
 
 **Metadata: strongly consistent.** We own it, and it lives in one Postgres database. Concurrent edits are last write wins.
 
@@ -290,6 +287,7 @@ Out of scope for this hand-in: CI and authentication.
 - **No idempotency key:** a client that loses our `202` and retries creates a duplicate print.
 - **Last write wins:** two simultaneous edits of the same field lose one. Two simultaneous `isPrimary: true` on versions of one label can fail one of them with `500`. The data stays correct.
 - **Lambda in a VPC:** the NAT gateway is a fixed monthly cost. Without RDS Proxy, connection count depends on low concurrency.
+- **Overlapping syncs:** nothing stops two runs from overlapping, e.g. when a run takes over 60 s or EventBridge invokes twice. The last to commit wins, so an older snapshot can briefly restore something already removed, or one run can abort on a deadlock. The next run corrects both. A `pg_try_advisory_xact_lock` would skip the second run, at the cost of more code.
 - **Local vs. AWS:** API Gateway, EventBridge and the SQS → Lambda mapping only run in AWS.
 
 ## 8. Future work and reflections

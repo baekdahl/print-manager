@@ -1,9 +1,9 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test } from "vitest";
 import { resetDatabase, testDb } from "../test/db";
 import { stubVendor } from "../test/vendor";
 import { labelsTable, printersTable } from "./db/schema";
-import { SYNC_LOCK_KEY, sync } from "./sync";
+import { sync } from "./sync";
 import { VendorError, type VendorPrinter } from "./vendor";
 
 beforeEach(resetDatabase);
@@ -233,19 +233,5 @@ describe("a sync run", () => {
 		await expect(sync(failing)).rejects.toThrow("returned 500");
 
 		expect(await printers()).toEqual([printerRow("P1", "ZD420")]);
-	});
-
-	test("is skipped while another run holds the lock", async () => {
-		const result = await testDb.transaction(async (tx) => {
-			await tx.execute(sql`select pg_advisory_xact_lock(${SYNC_LOCK_KEY})`);
-			return syncPrinters([{ name: "P1", model: "ZD420" }]);
-		});
-
-		expect(result).toBe("skipped");
-		expect(await printers()).toEqual([]);
-	});
-
-	test("reports a completed run", async () => {
-		expect(await syncPrinters([])).toBe("synced");
 	});
 });

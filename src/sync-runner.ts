@@ -15,9 +15,7 @@ export function syncIntervalFromEnv() {
 // For long-running processes: a failed run is reported, and the next run tries again.
 export async function syncAndReport(vendor: VendorClient) {
 	try {
-		if ((await sync(vendor)) === "skipped") {
-			console.error("sync skipped: another run is in progress");
-		}
+		await sync(vendor);
 	} catch (error) {
 		console.error(
 			`sync failed: ${error instanceof Error ? error.message : error}`,
@@ -25,8 +23,7 @@ export async function syncAndReport(vendor: VendorClient) {
 	}
 }
 
-// Runs now, then again `intervalMs` after each run finishes, so runs never overlap
-// within this process. The advisory lock covers other processes.
+// Runs now, then again `intervalMs` after each run finishes, so runs never overlap.
 export function startSyncLoop(vendor: VendorClient, intervalMs: number) {
 	let timer: NodeJS.Timeout | undefined;
 	const loop = async () => {
