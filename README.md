@@ -19,7 +19,7 @@ pnpm fake-vendor   # terminal 1: the fake vendor on http://localhost:4000
 pnpm dev           # terminal 2: the API on http://localhost:3000, the sync loop and the print worker
 ```
 
-`pnpm dev` first runs `pnpm local:up`: it creates `.env` from `.env.example` if it's missing, starts Postgres and ElasticMQ (a local SQS) with `docker compose`, and applies migrations. The two processes stay separate so you can stop the vendor and watch how sync and print jobs cope.
+`pnpm dev` first runs `pnpm local:up`: it creates `.env` from `.env.example` if it's missing, starts Postgres and ElasticMQ (a local SQS, with a web UI on <http://localhost:9325>) with `docker compose`, and applies migrations. The two processes stay separate so you can stop the vendor and watch how sync and print jobs cope.
 
 Swagger UI is at <http://localhost:3000/docs>, and the OpenAPI document is at `/openapi.json`.
 
