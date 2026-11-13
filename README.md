@@ -33,7 +33,7 @@ curl -X PATCH localhost:3000/labels/lbl_102 \
   -H 'content-type: application/json' -d '{"isPrimary": true}'
 ```
 
-Print, and follow the job from `queued` to `submitted`:
+Print, and follow the job from `queued` to `success`:
 
 ```sh
 curl -i -X POST localhost:3000/print-jobs \

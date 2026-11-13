@@ -10,9 +10,9 @@ const PrintJobSchema = z
 		id: z.uuid(),
 		printerName: z.string().openapi({ example: "ZD420-HALL-B" }),
 		labelId: z.string().openapi({ example: "lbl_123" }),
-		status: z.enum(["queued", "submitted", "failed"]).openapi({
+		status: z.enum(["queued", "success", "failed"]).openapi({
 			description:
-				"`submitted` means the vendor accepted the job, not that the label has printed",
+				"`success` means the vendor accepted the job, not that the label has printed",
 		}),
 		attempts: z.number().int(),
 		lastError: z.string().nullable(),

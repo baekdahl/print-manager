@@ -79,7 +79,7 @@ Response:
 | Status | Meaning |
 |---|---|
 | `queued` | Accepted by us, waiting to be sent to the vendor or being retried. |
-| `submitted` | The vendor returned `201`. That doesn't mean the label has physically printed. |
+| `success` | The vendor returned `201`. That doesn't mean the label has physically printed. |
 | `failed` | The vendor returned `400`, the response timed out, retries ran out, or the queue send failed. |
 
 `422` means the printer or label doesn't exist or has been removed. `503` means the job couldn't be put on the queue.

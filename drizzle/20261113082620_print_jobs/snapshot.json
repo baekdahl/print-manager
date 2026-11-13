@@ -108,7 +108,7 @@
         "name": "print_job_status",
         "values": [
           "queued",
-          "submitted",
+          "success",
           "failed"
         ],
         "entityType": "enums"

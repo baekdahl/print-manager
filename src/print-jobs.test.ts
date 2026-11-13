@@ -44,7 +44,7 @@ const vendorFailing = (error: Error) =>
 	});
 
 describe("processPrintJob", () => {
-	test("marks the job submitted when the vendor accepts it", async () => {
+	test("marks the job a success when the vendor accepts it", async () => {
 		const print = vi.fn(async () => {});
 		const id = await insertJob();
 
@@ -53,7 +53,7 @@ describe("processPrintJob", () => {
 		expect(result).toEqual({ kind: "done" });
 		expect(print).toHaveBeenCalledWith({ printerName: "P1", labelId: "lbl_1" });
 		expect(await jobRow(id)).toMatchObject({
-			status: "submitted",
+			status: "success",
 			attempts: 1,
 			lastError: null,
 		});
@@ -120,7 +120,7 @@ describe("processPrintJob", () => {
 
 	test("ignores a job that is no longer queued, so a duplicate message can't print twice", async () => {
 		const print = vi.fn(async () => {});
-		const id = await insertJob({ status: "submitted", attempts: 1 });
+		const id = await insertJob({ status: "success", attempts: 1 });
 
 		expect(await processPrintJob(id, stubVendor({ print }))).toEqual({
 			kind: "done",

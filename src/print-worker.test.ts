@@ -43,7 +43,7 @@ test("a submitted job reaches the vendor and the message is deleted", async () =
 
 	await receiveOnce(vendor, 1);
 
-	expect(await status(id)).toMatchObject({ status: "submitted", attempts: 1 });
+	expect(await status(id)).toMatchObject({ status: "success", attempts: 1 });
 	expect(await (await fakeVendor.request("/admin/prints")).json()).toEqual([
 		{ printerName: "ZD420-HALL-B", labelId: "lbl_101" },
 	]);

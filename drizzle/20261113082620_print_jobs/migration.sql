@@ -1,4 +1,4 @@
-CREATE TYPE "print_job_status" AS ENUM('queued', 'submitted', 'failed');--> statement-breakpoint
+CREATE TYPE "print_job_status" AS ENUM('queued', 'success', 'failed');--> statement-breakpoint
 CREATE TABLE "print_jobs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"printerName" text NOT NULL,

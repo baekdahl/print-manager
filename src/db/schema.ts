@@ -42,7 +42,7 @@ export const labelsTable = pgTable(
 
 export const printJobStatus = pgEnum("print_job_status", [
 	"queued",
-	"submitted",
+	"success",
 	"failed",
 ]);
 

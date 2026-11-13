@@ -135,7 +135,7 @@ export async function processPrintJob(
 			return { kind: "done" };
 		}
 
-		await record("submitted");
+		await record("success");
 		return { kind: "done" };
 	});
 }

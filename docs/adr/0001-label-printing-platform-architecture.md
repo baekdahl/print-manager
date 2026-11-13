@@ -52,7 +52,7 @@ We can't reach the stakeholders, so each open question gets an explicit assumpti
 | 13 | Which vendor errors are final? | Retrying a 400 won't help. After a response timeout the vendor may already have printed, and a duplicate label is worse than a missing one. | Mark the job `failed` on a 400, on a response timeout (no response within 10 s), or when retries run out. |
 | 14 | Duplicate print submissions? | Submitting a job only puts it on our queue, so the request is fast and rarely fails. A client retries only when it loses our response. | No idempotency key for now. `Idempotency-Key` on `POST /print-jobs` can be added later without breaking clients. |
 | 15 | Do we validate print jobs before sending them? | The vendor's 400 gives no reason. | Check that the printer and label exist in our store and aren't removed. Otherwise reject with `422`. The vendor still has the final say. |
-| 16 | What does print job status mean? | A vendor 201 means the vendor accepted the job, not that it printed. | Statuses: `queued`, `submitted`, `failed`. |
+| 16 | What does print job status mean? | A vendor 201 means the vendor accepted the job, not that it printed. | Statuses: `queued`, `success`, `failed`. |
 | 17 | How do users authenticate with our API, and how do we authenticate with the vendor? | Out of scope for this case. | Out of scope for this case. |
 | 18 | Scale? | Hundreds of printers, thousands of labels, tens of print jobs per minute. | One small service with managed or serverless components. No sharding. |
 | 19 | What are the vendor's rate limits? | Unknown, but modest. | Poll conservatively and send all vendor calls through one client. |
