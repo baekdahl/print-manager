@@ -15,17 +15,11 @@ You need Node 22 or later, pnpm and Docker.
 
 ```sh
 pnpm install
-cp .env.example .env
-docker compose up -d --wait   # Postgres and ElasticMQ (a local SQS)
-pnpm db:migrate
+pnpm fake-vendor   # terminal 1: the fake vendor on http://localhost:4000
+pnpm dev           # terminal 2: the API on http://localhost:3000, the sync loop and the print worker
 ```
 
-Then, in two terminals:
-
-```sh
-pnpm fake-vendor   # the fake vendor on http://localhost:4000
-pnpm dev           # the API on http://localhost:3000, the sync loop and the print worker
-```
+`pnpm dev` first runs `pnpm local:up`: it creates `.env` from `.env.example` if it's missing, starts Postgres and ElasticMQ (a local SQS) with `docker compose`, and applies migrations. The two processes stay separate so you can stop the vendor and watch how sync and print jobs cope.
 
 Swagger UI is at <http://localhost:3000/docs>, and the OpenAPI document is at `/openapi.json`.
 
@@ -72,7 +66,7 @@ The fake vendor keeps its data in memory, so restarting it brings back the seed 
 ### Checks
 
 ```sh
-pnpm test        # needs docker compose; uses a <database>_test database and a print-jobs-test queue
+pnpm test        # runs local:up too; uses a <database>_test database and a print-jobs-test queue
 pnpm typecheck
 pnpm lint
 pnpm build       # one bundle per Lambda handler in dist/

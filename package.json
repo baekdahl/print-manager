@@ -2,7 +2,8 @@
 	"name": "print-manager",
 	"type": "module",
 	"scripts": {
-		"dev": "tsx watch src/local.ts",
+		"dev": "pnpm local:up && tsx watch src/local.ts",
+		"local:up": "[ -f .env ] || cp .env.example .env; docker compose up -d --wait && pnpm db:migrate",
 		"fake-vendor": "tsx watch fake-vendor/server.ts",
 		"sync": "tsx src/sync-once.ts",
 		"build": "esbuild src/lambda/*.ts --bundle --platform=node --target=node22 --format=cjs --outdir=dist --out-extension:.js=.cjs",
@@ -10,8 +11,8 @@
 		"db:migrate": "drizzle-kit migrate",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check .",
-		"test": "vitest run",
-		"test:watch": "vitest"
+		"test": "pnpm local:up && vitest run",
+		"test:watch": "pnpm local:up && vitest"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.6",
