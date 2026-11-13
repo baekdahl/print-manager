@@ -19,10 +19,20 @@ export async function sync(vendor: VendorClient): Promise<void> {
 		vendor.getLabels(),
 	]);
 
-	await db.transaction(async (tx) => {
-		await syncPrinters(tx, printers);
-		await syncLabels(tx, labels);
-	});
+	const removed = await db.transaction(async (tx) => ({
+		printers: await syncPrinters(tx, printers),
+		labels: await syncLabels(tx, labels),
+	}));
+
+	console.log(
+		`sync: ${printers.length} printers, ${labels.length} labels at the vendor` +
+			(removed.printers.length
+				? `; removed printers ${removed.printers.join(", ")}`
+				: "") +
+			(removed.labels.length
+				? `; removed labels ${removed.labels.join(", ")}`
+				: ""),
+	);
 }
 
 async function syncPrinters(tx: Transaction, printers: VendorPrinter[]) {
@@ -39,7 +49,7 @@ async function syncPrinters(tx: Transaction, printers: VendorPrinter[]) {
 
 	// Whatever the vendor no longer returns is soft-deleted. With an empty list,
 	// notInArray matches every row.
-	await tx
+	const removed = await tx
 		.update(printersTable)
 		.set({ deleted: true })
 		.where(
@@ -50,7 +60,9 @@ async function syncPrinters(tx: Transaction, printers: VendorPrinter[]) {
 					printers.map((p) => p.name),
 				),
 			),
-		);
+		)
+		.returning({ name: printersTable.name });
+	return removed.map((p) => p.name);
 }
 
 async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
@@ -69,7 +81,7 @@ async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
 	}
 
 	// A removed label stops being primary, so it comes back as not primary.
-	await tx
+	const removed = await tx
 		.update(labelsTable)
 		.set({ deleted: true, isPrimary: false })
 		.where(
@@ -80,7 +92,9 @@ async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
 					labels.map((l) => l.id),
 				),
 			),
-		);
+		)
+		.returning({ id: labelsTable.id });
+	return removed.map((l) => l.id);
 }
 
 // In ON CONFLICT DO UPDATE, `excluded` is the row we tried to insert.

@@ -55,6 +55,7 @@ export function createFakeVendor(seed = defaultSeed) {
 			// Like the real vendor, a 400 carries no reason.
 			.post("/Print", async (c) => {
 				const fault = faults.shift();
+				if (fault) console.log("print: injecting fault", fault);
 				if (fault?.delayMs) {
 					await new Promise((resolve) => setTimeout(resolve, fault.delayMs));
 				}
@@ -69,6 +70,9 @@ export function createFakeVendor(seed = defaultSeed) {
 					return c.body(null, 400);
 				}
 				prints.push(job.data);
+				console.log(
+					`print: printed ${job.data.labelId} on ${job.data.printerName}`,
+				);
 				return c.body(null, 201);
 			})
 

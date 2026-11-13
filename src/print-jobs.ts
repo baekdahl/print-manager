@@ -60,6 +60,9 @@ export async function submitPrintJob(request: {
 
 	try {
 		await printJobQueue.send({ jobId: job.id });
+		console.log(
+			`print job ${job.id}: queued, ${job.labelId} on ${job.printerName}`,
+		);
 		return { kind: "queued", job };
 	} catch (error) {
 		console.error(`could not queue print job ${job.id}:`, error);
@@ -104,7 +107,10 @@ export async function processPrintJob(
 				and(eq(printJobsTable.id, jobId), eq(printJobsTable.status, "queued")),
 			)
 			.for("update", { skipLocked: true });
-		if (!job) return { kind: "done" };
+		if (!job) {
+			console.log(`print job ${jobId}: not queued or locked, skipping`);
+			return { kind: "done" };
+		}
 
 		const attempts = job.attempts + 1;
 		const record = (
@@ -125,17 +131,23 @@ export async function processPrintJob(
 			if (!(error instanceof VendorError)) throw error;
 
 			if (error.retryable && attempts < MAX_ATTEMPTS) {
+				const delaySeconds = backoffSeconds(attempts);
 				await record("queued", error.message);
-				return { kind: "retry", delaySeconds: backoffSeconds(attempts) };
+				console.log(
+					`print job ${jobId}: attempt ${attempts} failed, retrying in ${delaySeconds} s: ${error.message}`,
+				);
+				return { kind: "retry", delaySeconds };
 			}
 			const reason = error.retryable
 				? `${error.message} (gave up after ${attempts} attempts)`
 				: error.message;
 			await record("failed", reason);
+			console.log(`print job ${jobId}: failed: ${reason}`);
 			return { kind: "done" };
 		}
 
 		await record("success");
+		console.log(`print job ${jobId}: success on attempt ${attempts}`);
 		return { kind: "done" };
 	});
 }

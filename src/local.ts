@@ -1,4 +1,6 @@
 import { serve } from "@hono/node-server";
+import { Hono } from "hono";
+import { logger } from "hono/logger";
 import { app } from "./app";
 import { env } from "./env";
 import { startPrintWorkerLoop } from "./print-worker-runner";
@@ -9,7 +11,9 @@ import { vendorFromEnv } from "./vendor";
 // loop, the SQS event source mapping → the print worker loop.
 const vendor = vendorFromEnv();
 
-serve({ fetch: app.fetch, port: env.PORT }, (info) => {
+const server = new Hono().use(logger()).route("/", app);
+
+serve({ fetch: server.fetch, port: env.PORT }, (info) => {
 	console.log(`API listening on http://localhost:${info.port}`);
 });
 
