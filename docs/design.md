@@ -100,9 +100,6 @@ flowchart TB
     apigw[API Gateway<br/>HTTP API]
     sched[EventBridge Scheduler<br/>every 60 s]
     sqs[SQS print-jobs]
-    dlq[SQS dead-letter queue]
-    cw[CloudWatch<br/>logs + alarms]
-    secrets[Secrets Manager]
 
     subgraph vpc[VPC]
       subgraph private[Private subnets]
@@ -133,9 +130,6 @@ flowchart TB
 
   proxy --> db
   nat --> vendor
-  sqs -. crashes .-> dlq
-  dlq -. alarm .-> cw
-  secrets -. DB password .-> proxy
 
   linkStyle 0,1,2,3 stroke:#3b82f6,stroke-width:2px
   linkStyle 4,5,6 stroke:#22c55e,stroke-width:2px
@@ -151,8 +145,11 @@ There are three numbered flows: **API** requests (blue), **Sync** (green) and **
 | Print worker Lambda | Send jobs to the vendor, sort errors into retryable or final, record status | `src/print-jobs.ts`, `src/print-worker.ts` |
 | SQS `print-jobs` | Buffers print jobs and drives retry backoff. A dead-letter queue catches crashes | `src/queue.ts` |
 | RDS Postgres | Printers, labels, metadata and print jobs | `src/db/schema.ts` |
-| RDS Proxy | Pools connections from many Lambdas. Production only | |
+| RDS Proxy | Pools connections from many Lambdas, and reads the DB password from Secrets Manager. Production only | |
 | NAT gateway | Lets Lambdas in private subnets reach the vendor | |
+| CloudWatch | Logs, and alarms on DLQ depth, sync failures and the rate of `failed` jobs | |
+
+The dead-letter queue, CloudWatch and Secrets Manager are left out of the diagram, because they aren't part of any flow.
 
 All vendor calls go through one `VendorClient` (`src/vendor.ts`), which tests replace with an in-process fake vendor.
 
