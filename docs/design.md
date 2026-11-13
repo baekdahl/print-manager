@@ -3,9 +3,9 @@
 A REST API for printing labels remotely, in front of a third-party print vendor.
 
 1. [Problem](#1-problem)
-2. [Solution](#2-solution)
-3. [API](#3-api)
-4. [Key decisions](#4-key-decisions)
+2. [Key decisions](#2-key-decisions)
+3. [Solution](#3-solution)
+4. [API](#4-api)
 5. [How consistency is guaranteed](#5-how-consistency-is-guaranteed)
 6. [Implemented vs. designed, not built](#6-implemented-vs-designed-not-built)
 7. [Trade-offs and known limitations](#7-trade-offs-and-known-limitations)
@@ -48,7 +48,46 @@ Another team adds and removes printers and labels at the vendor without telling 
 
 Out of scope: changing printers and labels at the vendor, designing labels, knowing whether a label physically printed (the vendor doesn't say), and authentication.
 
-## 2. Solution
+## 2. Key decisions
+
+We can't reach the stakeholders, so each open question gets an explicit assumption.
+
+| Question | Assumption | Choice |
+|---|---|---|
+| How is a printer identified? | `name` is unique and stable. A rename is a delete plus an add | `name` is the key, in the database and in URLs |
+| How is a label identified? | `id` is unique and stable. A new version gets a new `id` and keeps the `name` | `id` is the key |
+| Who owns which data? | The vendor owns existence and vendor fields. We own metadata | Sync writes only vendor fields. The API writes only metadata |
+| How do we learn about vendor changes? | No webhooks or change feed | Poll and reconcile into our own store (see below) |
+| How stale may lists be? | Users browse to pick what to print, and the vendor checks every print anyway | Up to one sync interval, 60 s |
+| A printer or label disappears | It may come back, e.g. if it was removed by mistake | Soft delete: hide it, keep its metadata, restore it if it reappears |
+| What does `isPrimary` mean? | It marks the version of a label `name` users should pick | At most one per `name`, enforced by a partial unique index. A removed or new version is never primary |
+| Is printing synchronous? | The vendor can be slow or failing, and clients shouldn't wait | `202` plus a job id. A worker sends it through SQS |
+| Which vendor errors are retried? | See below | `500` and connection failures are retried, up to 5 attempts. The rest is final |
+| Validate before printing? | The vendor's `400` gives no reason | `422` if the printer or label is unknown or removed in our store |
+| Scale? | Hundreds of printers, thousands of labels, tens of jobs a minute | One small service on serverless components. No sharding, no pagination |
+
+**Polling instead of calling the vendor on every request.** Calling the vendor live is simpler and always fresh. We poll because:
+
+- listing and editing metadata keep working when the vendor is down
+- vendor load is fixed however many users we have, and its rate limits are unknown
+- reads skip the vendor round trip
+- filtering, sorting and pagination become possible
+- comparing runs shows additions and removals, which soft delete needs
+
+The cost is up to 60 s of staleness. That's acceptable, because users only find printers and labels through our API, and the vendor still has the final say on every print.
+
+**Retry only when the vendor certainly did nothing.** A `500` means nothing printed. A failed connection (refused, DNS error, no connection within 3 s) means the request never arrived. Both are retried with exponential backoff: 10, 20, 40 and 80 s. A `400` won't change on retry. After a response timeout (10 s), the vendor may already have printed, and with no job id we can't check. A duplicate label is worse than a missing one, so a `400`, a response timeout or running out of attempts mark the job `failed`.
+
+| Tech choice | Why | Rejected |
+|---|---|---|
+| AWS | Common for this kind of team, and it shows real infrastructure: VPC, NAT, pooling, IAM, DLQs | Cloudflare Workers + Queues + D1: simpler and cheaper, but hides that infrastructure |
+| Lambda | Spiky, low load. Handlers are thin wrappers around plain modules, so the same code runs locally | Containers on ECS: always-on cost for little traffic |
+| TypeScript, Hono, Zod | Hono runs unchanged on Lambda and Node. Zod validates requests and generates the OpenAPI spec | Express (weak types), Fastify (heavier) |
+| RDS Postgres, Drizzle | Same database locally in Docker, and `isPrimary` becomes a partial unique index. Drizzle combines schema, typed queries and migrations | DynamoDB: worse local setup, and uniqueness would need transactions in code |
+| SQS + DLQ | Visibility timeout gives retry backoff for free, and the DLQ catches crashes | A Postgres-backed queue: one less service, but we'd build the retry loop ourselves |
+| Terraform | Known well, and `plan` shows exactly what will change | CDK: same language, but less explicit |
+
+## 3. Solution
 
 Keep our own copy of the vendor's printers and labels, refreshed every 60 s, with our metadata next to it. Send print jobs through a queue, so a slow or failing vendor never blocks a client.
 
@@ -119,7 +158,7 @@ All vendor calls go through one `VendorClient` (`src/vendor.ts`), which tests re
 
 **Locally**, one Node process (`src/local.ts`) runs the same modules: the Hono server, a sync loop, and an SQS receive loop. Postgres and ElasticMQ (an SQS-compatible server) run in `docker-compose`. Only the triggers differ from AWS. See the [README](../README.md).
 
-## 3. API
+## 4. API
 
 Swagger UI at `/docs` and `/openapi.json` hold the full schema, generated from the Zod schemas in code.
 
@@ -155,45 +194,6 @@ Vendor fields are read-only and sit at the top level. Our fields sit under `meta
 | `queued` | Accepted, waiting to be sent or being retried |
 | `success` | The vendor returned `201`. That doesn't mean the label physically printed |
 | `failed` | The vendor returned `400`, the response timed out, retries ran out, or the job couldn't be queued |
-
-## 4. Key decisions
-
-We can't reach the stakeholders, so each open question gets an explicit assumption.
-
-| Question | Assumption | Choice |
-|---|---|---|
-| How is a printer identified? | `name` is unique and stable. A rename is a delete plus an add | `name` is the key, in the database and in URLs |
-| How is a label identified? | `id` is unique and stable. A new version gets a new `id` and keeps the `name` | `id` is the key |
-| Who owns which data? | The vendor owns existence and vendor fields. We own metadata | Sync writes only vendor fields. The API writes only metadata |
-| How do we learn about vendor changes? | No webhooks or change feed | Poll and reconcile into our own store (see below) |
-| How stale may lists be? | Users browse to pick what to print, and the vendor checks every print anyway | Up to one sync interval, 60 s |
-| A printer or label disappears | It may come back, e.g. if it was removed by mistake | Soft delete: hide it, keep its metadata, restore it if it reappears |
-| What does `isPrimary` mean? | It marks the version of a label `name` users should pick | At most one per `name`, enforced by a partial unique index. A removed or new version is never primary |
-| Is printing synchronous? | The vendor can be slow or failing, and clients shouldn't wait | `202` plus a job id. A worker sends it through SQS |
-| Which vendor errors are retried? | See below | `500` and connection failures are retried, up to 5 attempts. The rest is final |
-| Validate before printing? | The vendor's `400` gives no reason | `422` if the printer or label is unknown or removed in our store |
-| Scale? | Hundreds of printers, thousands of labels, tens of jobs a minute | One small service on serverless components. No sharding, no pagination |
-
-**Polling instead of calling the vendor on every request.** Calling the vendor live is simpler and always fresh. We poll because:
-
-- listing and editing metadata keep working when the vendor is down
-- vendor load is fixed however many users we have, and its rate limits are unknown
-- reads skip the vendor round trip
-- filtering, sorting and pagination become possible
-- comparing runs shows additions and removals, which soft delete needs
-
-The cost is up to 60 s of staleness. That's acceptable, because users only find printers and labels through our API, and the vendor still has the final say on every print.
-
-**Retry only when the vendor certainly did nothing.** A `500` means nothing printed. A failed connection (refused, DNS error, no connection within 3 s) means the request never arrived. Both are retried with exponential backoff: 10, 20, 40 and 80 s. A `400` won't change on retry. After a response timeout (10 s), the vendor may already have printed, and with no job id we can't check. A duplicate label is worse than a missing one, so a `400`, a response timeout or running out of attempts mark the job `failed`.
-
-| Tech choice | Why | Rejected |
-|---|---|---|
-| AWS | Common for this kind of team, and it shows real infrastructure: VPC, NAT, pooling, IAM, DLQs | Cloudflare Workers + Queues + D1: simpler and cheaper, but hides that infrastructure |
-| Lambda | Spiky, low load. Handlers are thin wrappers around plain modules, so the same code runs locally | Containers on ECS: always-on cost for little traffic |
-| TypeScript, Hono, Zod | Hono runs unchanged on Lambda and Node. Zod validates requests and generates the OpenAPI spec | Express (weak types), Fastify (heavier) |
-| RDS Postgres, Drizzle | Same database locally in Docker, and `isPrimary` becomes a partial unique index. Drizzle combines schema, typed queries and migrations | DynamoDB: worse local setup, and uniqueness would need transactions in code |
-| SQS + DLQ | Visibility timeout gives retry backoff for free, and the DLQ catches crashes | A Postgres-backed queue: one less service, but we'd build the retry loop ourselves |
-| Terraform | Known well, and `plan` shows exactly what will change | CDK: same language, but less explicit |
 
 ## 5. How consistency is guaranteed
 
