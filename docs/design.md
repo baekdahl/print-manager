@@ -53,7 +53,7 @@ Out of scope: changing printers and labels at the vendor, designing labels, know
 Keep our own copy of the vendor's printers and labels, refreshed every 60 s, with our metadata next to it. Send print jobs through a queue, so a slow or failing vendor never blocks a client.
 
 ```mermaid
-flowchart LR
+flowchart TB
   client([API clients])
   vendor[[Vendor API]]
 
@@ -73,22 +73,24 @@ flowchart LR
         proxy[RDS Proxy]
         db[(RDS Postgres)]
       end
-      nat[NAT gateway]
+      subgraph public[Public subnet]
+        nat[NAT gateway]
+      end
     end
   end
 
-  client -- A1 --> apigw
-  apigw -- A2 --> api
-  api -- "A3 read / write" --> proxy
-  api -- "A4 enqueue job id" --> sqs
+  client -- "API 1" --> apigw
+  apigw -- "API 2" --> api
+  api -- "API 3: read / write" --> proxy
+  sqs -- "API 4: enqueue job id" --- api
 
-  sched -- S1 --> sync
-  sync -- "S2 GET /Printers, /Labels" --> nat
-  sync -- "S3 reconcile, one transaction" --> proxy
+  sched -- "Sync 1" --> sync
+  sync -- "Sync 2: GET /Printers, /Labels" --> nat
+  sync -- "Sync 3: reconcile, one transaction" --> proxy
 
-  sqs -- P1 --> worker
-  worker -- "P2 POST /Print" --> nat
-  worker -- "P3 job status" --> proxy
+  sqs -- "Print 1" --> worker
+  worker -- "Print 2: POST /Print" --> nat
+  worker -- "Print 3: job status" --> proxy
 
   proxy --> db
   nat --> vendor
@@ -101,7 +103,7 @@ flowchart LR
   linkStyle 7,8,9 stroke:#f97316,stroke-width:2px
 ```
 
-There are three flows: **A** for API requests (blue), **S** for sync (green) and **P** for printing (orange).
+There are three numbered flows: **API** requests (blue), **Sync** (green) and **Print** (orange). Triggers sit at the top, compute in the middle, and data and the way out to the vendor at the bottom.
 
 | Component | Responsibility | Code |
 |---|---|---|
