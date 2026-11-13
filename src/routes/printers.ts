@@ -40,7 +40,6 @@ const NameParamSchema = z.object({
 	}),
 });
 
-// The one place that knows how a database row becomes an API resource.
 function toPrinter(row: Printer): z.infer<typeof PrinterSchema> {
 	return {
 		name: row.name,

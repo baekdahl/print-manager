@@ -5,7 +5,7 @@ A REST API for printing labels remotely. It sits in front of a third-party print
 ## Docs
 
 - [Design](docs/design.md): problem, architecture, decisions, consistency and trade-offs
-- Swagger UI at <http://localhost:3000/docs> once the API is running
+- Swagger UI at <http://localhost:3000/docs> and the OpenAPI document at `/openapi.json`, once the API is running
 
 ## Running locally
 
@@ -18,8 +18,6 @@ pnpm dev           # terminal 2: the API on http://localhost:3000, the sync loop
 ```
 
 `pnpm dev` first runs `pnpm local:up`: it creates `.env` from `.env.example` if it's missing, starts Postgres and ElasticMQ (a local SQS, with a web UI on <http://localhost:9325>) with `docker compose`, and applies migrations. The two processes stay separate so you can stop the vendor and watch how sync and print jobs cope.
-
-Swagger UI is at <http://localhost:3000/docs>, and the OpenAPI document is at `/openapi.json`.
 
 ### Try it
 

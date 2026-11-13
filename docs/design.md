@@ -304,15 +304,15 @@ Out of scope for this hand-in: CI and authentication.
 
 ## 7. Trade-offs and known limitations
 
-- **Staleness:** a printer removed at the vendor stays listed until the next sync, and responses don't say when data was last synced.
-- **Name stability:** if vendor printer names aren't actually stable, metadata ends up on the wrong printer.
-- **Timeouts:** the job is marked `failed`, even though it may have printed. That includes a vendor we can't connect to within 10 s, which is never retried.
-- **Worker crash after a `201`:** the transaction rolls back, the job stays `queued` and SQS redelivers it, causing a duplicate print. Closing this gap would need an idempotency key from the vendor.
-- **Crash between insert and queue send:** the job stays `queued` with no message. That's the cost of not having an outbox.
-- **No idempotency key:** a client that loses our `202` and retries creates a duplicate print.
-- **Last write wins:** two simultaneous edits of the same field lose one. Two simultaneous `isPrimary: true` on versions of one label can fail one of them with `500`. The data stays correct.
-- **Lambda in a VPC:** the NAT gateway is a fixed monthly cost. Without RDS Proxy, connection count depends on low concurrency.
-- **Overlapping syncs:** nothing stops two runs from overlapping, e.g. when a run takes over 60 s or EventBridge invokes twice. The last to commit wins, so an older snapshot can briefly restore something already removed, or one run can abort on a deadlock. The next run corrects both. A `pg_try_advisory_xact_lock` would skip the second run, at the cost of more code.
+- **Staleness:** A printer removed at the vendor stays listed until the next sync, and responses don't say when data was last synced.
+- **Name stability:** If vendor printer names aren't actually stable, metadata ends up on the wrong printer.
+- **Timeouts:** The job is marked `failed`, even though it may have printed. That includes a vendor we can't connect to within 10 s, which is never retried.
+- **Worker crash after a `201`:** The transaction rolls back, the job stays `queued` and SQS redelivers it, causing a duplicate print. Closing this gap would need an idempotency key from the vendor.
+- **Crash between insert and queue send:** The job stays `queued` with no message. That's the cost of not having an outbox.
+- **No idempotency key:** A client that loses our `202` and retries creates a duplicate print.
+- **Last write wins:** Two simultaneous edits of the same field lose one. Two simultaneous `isPrimary: true` on versions of one label can fail one of them with `500`. The data stays correct.
+- **Lambda in a VPC:** The NAT gateway is a fixed monthly cost. Without RDS Proxy, connection count depends on low concurrency.
+- **Overlapping syncs:** Nothing stops two runs from overlapping, e.g. when a run takes over 60 s or EventBridge invokes twice. The last to commit wins, so an older snapshot can briefly restore something already removed, or one run can abort on a deadlock. The next run corrects both. A `pg_try_advisory_xact_lock` would skip the second run, at the cost of more code.
 - **Local vs. AWS:** API Gateway, EventBridge and the SQS → Lambda mapping only run in AWS.
 
 ## 8. Future work and reflections
