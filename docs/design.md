@@ -201,24 +201,35 @@ Vendor fields are read-only and sit at the top level. Our fields sit under `meta
 
 ```mermaid
 sequenceDiagram
-  participant S as Scheduler (60 s)
-  participant L as Sync Lambda
+  autonumber
+  box rgba(127,127,127,0.08) AWS
+    participant S as EventBridge Scheduler
+    participant L as Sync Lambda
+    participant DB@{ "type": "database" } as Postgres
+  end
   participant V as Vendor
-  participant DB as Postgres
 
-  S->>L: invoke
-  par In parallel
-    L->>V: GET /Printers
-  and
-    L->>V: GET /Labels
+  S->>L: invoke every 60 s
+
+  rect rgba(34,197,94,0.12)
+    Note over L,V: Read the vendor, outside any transaction
+    par In parallel
+      L->>V: GET /Printers
+    and
+      L->>V: GET /Labels
+    end
+    opt If either vendor call fails
+      L-->>S: throw, the next run retries
+    end
   end
-  opt If either vendor call fails
-    L-->>S: throw: nothing changed, the next run retries
+
+  rect rgba(34,197,94,0.12)
+    Note over L,DB: One transaction
+    L->>DB: BEGIN
+    L->>DB: upsert vendor fields, restore reappearing items
+    L->>DB: soft delete the rest, removed labels lose isPrimary
+    L->>DB: COMMIT
   end
-  L->>DB: BEGIN
-  L->>DB: upsert vendor fields, deleted = false (restores reappearing items)
-  L->>DB: soft delete everything the vendor didn't return. Removed labels lose isPrimary
-  L->>DB: COMMIT
 ```
 
 - The vendor is read before the transaction opens, so a slow vendor never holds a lock, and a failed read never writes.
@@ -231,30 +242,47 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+  autonumber
   actor C as Client
-  participant API as API Lambda
-  participant DB as Postgres
-  participant Q as SQS
-  participant W as Print worker
+  box rgba(127,127,127,0.08) AWS
+    participant API as API Lambda
+    participant DB@{ "type": "database" } as Postgres
+    participant Q@{ "type": "queue" } as SQS
+    participant W as Print worker
+  end
   participant V as Vendor
 
-  C->>API: POST /print-jobs
-  API->>DB: printer and label exist and aren't removed?
-  API->>DB: insert job (queued)
-  API->>Q: send {jobId}
-  API-->>C: 202 + Location
-  Q->>W: deliver
-  W->>DB: lock the job row if still queued (FOR UPDATE SKIP LOCKED)
-  W->>V: POST /Print
-  V-->>W: 500
-  W->>DB: attempts = 1, lastError, still queued
-  W->>Q: hide the message for 10 s, report it as failed
-  Q->>W: deliver again after 10 s
-  W->>V: POST /Print
-  V-->>W: 201
-  W->>DB: status = success
-  W->>Q: delete the message
-  Note over W,V: 400, response timeout or 5th failed attempt → failed, message deleted
+  rect rgba(59,130,246,0.12)
+    Note over C,Q: Submit
+    C->>API: POST /print-jobs
+    API->>DB: printer and label exist?
+    API->>DB: insert job (queued)
+    API->>Q: send {jobId}
+    API-->>C: 202 + Location
+  end
+
+  rect rgba(249,115,22,0.12)
+    Note over Q,V: Attempt 1
+    Q->>W: deliver
+    W->>DB: lock the row if still queued
+    W->>V: POST /Print
+    V-->>W: 500
+    W->>DB: attempts = 1, still queued
+    W->>Q: retry in 10 s
+  end
+
+  rect rgba(249,115,22,0.12)
+    Note over Q,V: Attempt 2, 10 s later
+    Q->>W: deliver
+    W->>DB: lock the row if still queued
+    W->>V: POST /Print
+    V-->>W: 201
+    W->>DB: status = success
+    W->>Q: delete the message
+  end
+
+  Note over Q,V: 400, response timeout or 5th failure → failed, message deleted
+
   C->>API: GET /print-jobs/{id}
   API-->>C: success
 ```
