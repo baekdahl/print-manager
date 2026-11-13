@@ -90,7 +90,7 @@ async function syncLabels(tx: Transaction, labels: VendorLabel[]) {
 			});
 	}
 
-	// A removed label stops being primary, so it comes back as not primary (ADR 0001 #8).
+	// A removed label stops being primary, so it comes back as not primary.
 	await tx
 		.update(labelsTable)
 		.set({ deleted: true, isPrimary: false })

@@ -4,10 +4,8 @@ A REST API for printing labels remotely. It sits in front of a third-party print
 
 ## Docs
 
-- [API](docs/api.md)
-- [Architecture](docs/architecture.md)
-- [ADR 0001: Label printing platform architecture](docs/adr/0001-label-printing-platform-architecture.md)
-- [ADR 0002: AWS serverless, runnable as plain Node locally](docs/adr/0002-aws-serverless-with-local-node.md)
+- [Design](docs/design.md): problem, architecture, decisions, consistency and trade-offs
+- Swagger UI at <http://localhost:3000/docs> once the API is running
 
 ## Running locally
 
@@ -71,13 +69,3 @@ pnpm typecheck
 pnpm lint
 pnpm build       # one bundle per Lambda handler in dist/
 ```
-
-## Build plan
-
-- [x] Repo skeleton, `docker-compose`, Drizzle schema and migrations
-- [x] Fake vendor
-- [x] `VendorClient` and sync, with the soft delete and `isPrimary` rules
-- [x] API routes for printers and labels
-- [x] Print jobs: the endpoint, the worker, retries and error classification
-- [x] Local runner and integration tests
-- [ ] Appendices: Terraform, CI, diagram polish
