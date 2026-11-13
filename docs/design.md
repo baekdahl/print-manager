@@ -207,12 +207,12 @@ sequenceDiagram
   participant DB as Postgres
 
   S->>L: invoke
-  par
+  par In parallel
     L->>V: GET /Printers
   and
     L->>V: GET /Labels
   end
-  alt vendor fails, times out or returns a bad body
+  opt If either vendor call fails
     L-->>S: throw: nothing changed, the next run retries
   end
   L->>DB: BEGIN
