@@ -1,0 +1,299 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "7ce14aa3-49e0-4fed-8294-7b1e7f82170a",
+  "prevIds": [
+    "f8048dc2-0c48-4c69-9e12-917c60cc9b31"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_enum",
+      "statementTarget": [
+        "enum",
+        "public",
+        "print_job_status"
+      ],
+      "writes": [
+        "s|enum|public.print_job_status",
+        "n|enum|public.print_job_status",
+        "e|enum|public.print_job_status",
+        "n|type|public.print_job_status"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "print_jobs"
+      ],
+      "writes": [
+        "s|tbl|public.print_jobs",
+        "n|tbl|public.print_jobs",
+        "e|tbl|public.print_jobs",
+        "n|rel|public.print_jobs",
+        "n|type|public.print_jobs",
+        "n|rel|public.print_jobs_pkey"
+      ],
+      "reads": [
+        "n|sch|public",
+        "n|enum|public.print_job_status"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "print_jobs"
+      ],
+      "writes": [
+        "s|fk|public.print_jobs.print_jobs_printerName_printers_name_fkey",
+        "n|fk|public.print_jobs.print_jobs_printerName_printers_name_fkey",
+        "e|fk|public.print_jobs.print_jobs_printerName_printers_name_fkey",
+        "n|con|public.print_jobs.print_jobs_printerName_printers_name_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.print_jobs",
+        "n|sch|public",
+        "n|tbl|public.printers",
+        "n|sch|public",
+        "n|col|public.print_jobs.printerName",
+        "n|col|public.printers.name",
+        "e|uniqueness|public.printers.name"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "print_jobs"
+      ],
+      "writes": [
+        "s|fk|public.print_jobs.print_jobs_labelId_labels_id_fkey",
+        "n|fk|public.print_jobs.print_jobs_labelId_labels_id_fkey",
+        "e|fk|public.print_jobs.print_jobs_labelId_labels_id_fkey",
+        "n|con|public.print_jobs.print_jobs_labelId_labels_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.print_jobs",
+        "n|sch|public",
+        "n|tbl|public.labels",
+        "n|sch|public",
+        "n|col|public.print_jobs.labelId",
+        "n|col|public.labels.id",
+        "e|uniqueness|public.labels.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "print_jobs",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "print_job_status",
+        "values": [
+          "queued",
+          "submitted",
+          "failed"
+        ],
+        "entityType": "enums"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "gen_random_uuid()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "printerName",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "labelId",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "status",
+        "type": "print_job_status",
+        "typeSchema": "public",
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'queued'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "attempts",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "lastError",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "createdAt",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "updatedAt",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "print_jobs_printerName_printers_name_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "printerName"
+        ],
+        "schemaTo": "public",
+        "tableTo": "printers",
+        "columnsTo": [
+          "name"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "print_jobs_labelId_labels_id_fkey",
+        "nameExplicit": false,
+        "columns": [
+          "labelId"
+        ],
+        "schemaTo": "public",
+        "tableTo": "labels",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "NO ACTION",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "print_jobs",
+        "name": "print_jobs_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

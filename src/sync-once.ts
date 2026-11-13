@@ -1,10 +1,10 @@
 import { db } from "./db";
 import { sync } from "./sync";
-import { syncConfigFromEnv } from "./sync-runner";
+import { vendorFromEnv } from "./vendor";
 
 // `pnpm sync`: one run, then exit. A failed run exits non-zero.
 try {
-	console.log(`sync ${await sync(syncConfigFromEnv().vendor)}`);
+	console.log(`sync ${await sync(vendorFromEnv())}`);
 } catch (error) {
 	console.error(
 		`sync failed: ${error instanceof Error ? error.message : error}`,

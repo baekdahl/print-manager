@@ -224,7 +224,7 @@ describe("a sync run", () => {
 	test("a vendor error leaves the database unchanged", async () => {
 		await syncPrinters([{ name: "P1", model: "ZD420" }]);
 		const failing = {
-			getPrinters: async () => [],
+			...stubVendor(),
 			getLabels: async () => {
 				throw new VendorError("vendor GET /Labels returned 500");
 			},

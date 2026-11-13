@@ -11,3 +11,11 @@ export function patch(path: string, body: unknown) {
 		headers: { "content-type": "application/json" },
 	});
 }
+
+export function post(path: string, body: unknown) {
+	return app.request(path, {
+		method: "POST",
+		body: typeof body === "string" ? body : JSON.stringify(body),
+		headers: { "content-type": "application/json" },
+	});
+}

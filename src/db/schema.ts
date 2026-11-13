@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { boolean, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+	boolean,
+	integer,
+	pgEnum,
+	pgTable,
+	text,
+	timestamp,
+	uniqueIndex,
+	uuid,
+} from "drizzle-orm/pg-core";
 
 // Vendor fields (name, model) are written only by sync.
 // Metadata fields (nickname, location, serialNumber) are written only by the API.
@@ -31,5 +40,30 @@ export const labelsTable = pgTable(
 	],
 );
 
+export const printJobStatus = pgEnum("print_job_status", [
+	"queued",
+	"submitted",
+	"failed",
+]);
+
+export const printJobsTable = pgTable("print_jobs", {
+	id: uuid().primaryKey().defaultRandom(),
+	printerName: text()
+		.notNull()
+		.references(() => printersTable.name),
+	labelId: text()
+		.notNull()
+		.references(() => labelsTable.id),
+	status: printJobStatus().notNull().default("queued"),
+	attempts: integer().notNull().default(0),
+	lastError: text(),
+	createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+	updatedAt: timestamp({ withTimezone: true })
+		.notNull()
+		.defaultNow()
+		.$onUpdate(() => new Date()),
+});
+
 export type Printer = typeof printersTable.$inferSelect;
 export type Label = typeof labelsTable.$inferSelect;
+export type PrintJob = typeof printJobsTable.$inferSelect;

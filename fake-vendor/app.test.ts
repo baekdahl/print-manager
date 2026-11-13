@@ -77,4 +77,34 @@ describe("fake vendor", () => {
 
 		expect(res.status).toBe(404);
 	});
+
+	test("prints a known printer and label", async () => {
+		const { vendor, client } = setup();
+
+		await client.print({ printerName: "P1", labelId: "lbl_1" });
+
+		expect(await (await vendor.request("/admin/prints")).json()).toEqual([
+			{ printerName: "P1", labelId: "lbl_1" },
+		]);
+	});
+
+	test("rejects a print for an unknown printer with a final error", async () => {
+		const { client } = setup();
+
+		await expect(
+			client.print({ printerName: "nope", labelId: "lbl_1" }),
+		).rejects.toMatchObject({ retryable: false });
+	});
+
+	test("injected faults apply to the next prints, then it recovers", async () => {
+		const { vendor, client } = setup();
+		await vendor.request(
+			...post("/admin/print-faults", { status: 500, times: 2 }),
+		);
+		const job = { printerName: "P1", labelId: "lbl_1" };
+
+		await expect(client.print(job)).rejects.toMatchObject({ retryable: true });
+		await expect(client.print(job)).rejects.toMatchObject({ retryable: true });
+		await expect(client.print(job)).resolves.toBeUndefined();
+	});
 });

@@ -8,7 +8,9 @@ import type { ZodError } from "zod";
 const titles: Partial<Record<ContentfulStatusCode, string>> = {
 	400: "Bad Request",
 	404: "Not Found",
+	422: "Unprocessable Content",
 	500: "Internal Server Error",
+	503: "Service Unavailable",
 };
 
 const IssueSchema = z.object({
